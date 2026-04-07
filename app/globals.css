@@ -1,26 +1,56 @@
 @import "tailwindcss";
+@config "../tailwind.config.js";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f2f8fa;
+  --foreground: #102a33;
+  --surface: #ffffff;
+  --petrol-blue: #0f4c5c;
+  --petrol-blue-deep: #0a3540;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: var(--font-poppins);
+  --font-display: var(--font-space-grotesk);
 }
 
 body {
-  background: var(--background);
+  background: radial-gradient(circle at 15% 15%, rgba(15, 76, 92, 0.12), transparent 35%),
+    radial-gradient(circle at 80% 20%, rgba(0, 146, 199, 0.08), transparent 40%),
+    var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-poppins), sans-serif;
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-space-grotesk), sans-serif;
+}
+
+.glass {
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.55));
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  box-shadow: 0 12px 30px rgba(15, 76, 92, 0.12);
+  backdrop-filter: blur(16px);
+}
+
+.ai-button {
+  background: linear-gradient(120deg, rgba(15, 76, 92, 0.96), rgba(15, 76, 92, 0.78));
+  color: #ecfbff;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  transition: box-shadow 180ms ease, transform 180ms ease, border-color 180ms ease;
+}
+
+.ai-button:hover {
+  box-shadow: 0 0 0 1px rgba(89, 211, 255, 0.65), 0 12px 24px rgba(15, 76, 92, 0.22);
+  transform: translateY(-1px);
+  border-color: rgba(137, 220, 245, 0.95);
+}
+
+.text-balance {
+  text-wrap: balance;
 }
