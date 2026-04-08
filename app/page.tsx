@@ -1,365 +1,433 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties, FormEvent, MouseEvent as ReactMouseEvent } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowRight, LoaderCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
-import { GraduationCap, LockKeyhole, Mail, ShieldCheck, UsersRound } from "lucide-react";
-import { LoginBrainScene } from "@/components/login-brain-scene";
-import { LOGIN_CREDENTIALS, UserRole, validatePrototypeLogin } from "@/lib/auth";
+import { type UserRole, validatePrototypeLogin } from "@/lib/auth";
 
-const roleCards = [
+type RoleCard = {
+  key: UserRole;
+  title: string;
+  subtitle: string;
+  color: string;
+};
+
+const roles: RoleCard[] = [
   {
-    role: "admin" as UserRole,
+    key: "admin",
     title: "Administrateur",
-    caption: "Pilotage global du centre",
-    icon: ShieldCheck,
+    subtitle: "Pilotage global du centre",
+    color: "#67E8F9",
   },
   {
-    role: "teacher" as UserRole,
+    key: "teacher",
     title: "Enseignant",
-    caption: "Suivi pedagogique intelligent",
-    icon: GraduationCap,
+    subtitle: "Suivi pédagogique intelligent",
+    color: "#C4B5FD",
   },
   {
-    role: "parent" as UserRole,
+    key: "parent",
     title: "Parents",
-    caption: "Vision claire de la progression",
-    icon: UsersRound,
+    subtitle: "Vision claire de la progression",
+    color: "#F9A8D4",
   },
 ];
 
-const roleColors: Record<UserRole, string> = {
-  admin: "#65e8f4",
-  teacher: "#b8a8ff",
-  parent: "#f59cc5",
-};
-
-type LineGeometry = Record<
-  UserRole,
-  {
-    start: { x: number; y: number };
-    cp1: { x: number; y: number };
-    cp2: { x: number; y: number };
-    end: { x: number; y: number };
-  } | null
->;
-
-function emptyLineGeometry(): LineGeometry {
-  return {
-    admin: null,
-    teacher: null,
-    parent: null,
-  };
+function ShieldIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+      <path
+        d="M12 3l7 3v5c0 5-3.4 8.8-7 10-3.6-1.2-7-5-7-10V6l7-3z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <path d="M9.4 12l1.8 1.8 3.6-3.6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
 }
 
-export default function Home() {
+function TeacherIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+      <path d="M3 9.5L12 5l9 4.5L12 14 3 9.5z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+      <path d="M7.5 12.2V16c0 1.2 2 2.2 4.5 2.2s4.5-1 4.5-2.2v-3.8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ParentsIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+      <circle cx="8" cy="9" r="2.7" stroke="currentColor" strokeWidth="1.7" />
+      <circle cx="16" cy="9.8" r="2.3" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M3.8 18.3c.5-2.5 2.3-4 4.2-4h.1c1.9 0 3.7 1.5 4.1 4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <path d="M13.8 18.3c.4-1.9 1.7-3.1 3.2-3.1h.1c1.4 0 2.7 1.2 3.1 3.1" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function RoleIcon({ role }: { role: UserRole }) {
+  if (role === "admin") return <ShieldIcon />;
+  if (role === "teacher") return <TeacherIcon />;
+  return <ParentsIcon />;
+}
+
+function BrainCapSVG({ selectedRole }: { selectedRole: UserRole }) {
+  return (
+    <svg viewBox="0 0 760 620" className="h-full w-full" role="img" aria-label="Futuristic brain with data streams">
+      <defs>
+        <linearGradient id="brainFill" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#F0F9FF" stopOpacity="0.95" />
+          <stop offset="55%" stopColor="#DDD6FE" stopOpacity="0.85" />
+          <stop offset="100%" stopColor="#BAE6FD" stopOpacity="0.9" />
+        </linearGradient>
+        <linearGradient id="capFill" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#DDE6EE" />
+          <stop offset="100%" stopColor="#8AA2B7" />
+        </linearGradient>
+        <filter id="brainGlow" x="-40%" y="-40%" width="180%" height="180%">
+          <feGaussianBlur stdDeviation="12" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+
+      <ellipse cx="252" cy="315" rx="168" ry="142" fill="url(#brainFill)" opacity="0.95" filter="url(#brainGlow)" />
+      <ellipse cx="340" cy="312" rx="142" ry="124" fill="url(#brainFill)" opacity="0.9" filter="url(#brainGlow)" />
+
+      <g fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.86">
+        <path d="M130 281c28-56 88-80 140-44 46 32 94 18 128-16" stroke="#60A5FA" strokeWidth="6" />
+        <path d="M128 345c40-52 101-62 146-20 44 40 89 44 132 8" stroke="#C4B5FD" strokeWidth="6" />
+        <path d="M155 402c44-26 86-23 130 12 42 34 86 26 116-6" stroke="#F9A8D4" strokeWidth="5.5" />
+        <path d="M171 239c30-24 72-28 108-4" stroke="#67E8F9" strokeWidth="4.5" opacity="0.8" />
+        <path d="M172 447c26 10 58 8 82-8" stroke="#BAE6FD" strokeWidth="4" opacity="0.8" />
+      </g>
+
+      <g>
+        <path d="M116 170l188-72 188 72-188 52-188-52z" fill="url(#capFill)" />
+        <ellipse cx="304" cy="214" rx="69" ry="24" fill="#7E95AA" opacity="0.9" />
+        <path d="M102 184l10 127" stroke="#BFD2E1" strokeWidth="4" strokeLinecap="round" />
+        <circle cx="113" cy="313" r="9" fill="#CEDCE8" />
+      </g>
+
+      {roles.map((role, index) => {
+        const active = selectedRole === role.key;
+        const y = 242 + index * 84;
+        const streamStyle = {
+          ["--stream-color" as string]: role.color,
+          ["--stream-delay" as string]: `${index * 0.2}s`,
+        } as CSSProperties;
+
+        return (
+          <g key={role.key}>
+            <circle cx="382" cy={y} r="16" fill="#0D3C46" opacity="0.9" />
+            <circle cx="382" cy={y} r="8" fill={role.color} opacity={active ? 1 : 0.45} className={active ? "stream-dot" : ""} />
+
+            {[0, 9, -9].map((offset) => (
+              <path
+                key={`${role.key}-${offset}`}
+                d={`M 398 ${y + offset} C 500 ${y + offset - 18}, 590 ${y + offset - 4}, 742 ${206 + index * 103 + offset * 0.28}`}
+                fill="none"
+                stroke="var(--stream-color)"
+                strokeWidth={active ? 3.3 : 2}
+                strokeLinecap="round"
+                strokeDasharray={active ? "14 16" : "8 18"}
+                opacity={active ? 0.95 : 0.22}
+                className={active ? "stream-active" : "stream-idle"}
+                style={streamStyle}
+              />
+            ))}
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+export default function HomePage() {
   const router = useRouter();
-  const stageRef = useRef<HTMLDivElement>(null);
-
-  const brainAnchorRefs = useRef<Record<UserRole, HTMLDivElement | null>>({
-    admin: null,
-    teacher: null,
-    parent: null,
-  });
-
-  const cardRefs = useRef<Record<UserRole, HTMLButtonElement | null>>({
-    admin: null,
-    teacher: null,
-    parent: null,
-  });
 
   const [selectedRole, setSelectedRole] = useState<UserRole>("admin");
-  const [email, setEmail] = useState("admin@edutrack.ma");
-  const [password, setPassword] = useState("admin123");
-  const [error, setError] = useState("");
-  const [lineGeometry, setLineGeometry] = useState<LineGeometry>(emptyLineGeometry);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [tappedRole, setTappedRole] = useState<UserRole | null>(null);
 
-  const selectedCredentials = useMemo(
-    () => LOGIN_CREDENTIALS.find((item) => item.role === selectedRole),
+  const brainParallaxRef = useRef<HTMLDivElement | null>(null);
+  const submitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const roleTapTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const selectedRoleMeta = useMemo(
+    () => roles.find((role) => role.key === selectedRole) ?? roles[0],
     [selectedRole],
   );
 
-  const onRoleChange = useCallback((role: UserRole) => {
-    setSelectedRole(role);
-    const credential = LOGIN_CREDENTIALS.find((item) => item.role === role);
-    if (credential) {
-      setEmail(credential.email);
-      setPassword(credential.password);
-    }
-    setError("");
-  }, []);
-
-  const updatePaths = useCallback(() => {
-    const stage = stageRef.current;
-    if (!stage) return;
-
-    const stageRect = stage.getBoundingClientRect();
-    const next = emptyLineGeometry();
-
-    (Object.keys(roleColors) as UserRole[]).forEach((role) => {
-      const card = cardRefs.current[role];
-      const anchor = brainAnchorRefs.current[role];
-      if (!card || !anchor) return;
-
-      const anchorRect = anchor.getBoundingClientRect();
-      const cardRect = card.getBoundingClientRect();
-
-      const startX = anchorRect.left + anchorRect.width * 0.5 - stageRect.left;
-      const startY = anchorRect.top + anchorRect.height * 0.5 - stageRect.top;
-      const endX = cardRect.left + 2 - stageRect.left;
-      const endY = cardRect.top + cardRect.height * 0.5 - stageRect.top;
-
-      const distance = Math.max(120, endX - startX);
-      const curveAmount = Math.min(190, distance * 0.55);
-
-      next[role] = {
-        start: { x: startX, y: startY },
-        cp1: { x: startX + curveAmount, y: startY },
-        cp2: { x: endX - curveAmount, y: endY },
-        end: { x: endX, y: endY },
-      };
-    });
-
-    setLineGeometry(next);
-  }, []);
-
   useEffect(() => {
-    const firstFrame = requestAnimationFrame(() => updatePaths());
+    function createParticle(x: number, y: number) {
+      const particle = document.createElement("div");
+      particle.style.position = "fixed";
+      particle.style.left = `${x}px`;
+      particle.style.top = `${y}px`;
+      particle.style.width = "10px";
+      particle.style.height = "10px";
+      particle.style.background =
+        "linear-gradient(135deg, var(--petrol-blue), var(--petrol-blue-deep))";
+      particle.style.borderRadius = "9999px";
+      particle.style.pointerEvents = "none";
+      particle.style.zIndex = "9999";
+      particle.style.opacity = "0.95";
+      particle.style.boxShadow = "0 0 20px rgba(15, 76, 92, 0.35)";
 
-    const observer = new ResizeObserver(() => {
-      requestAnimationFrame(() => updatePaths());
-    });
+      document.body.appendChild(particle);
 
-    const stage = stageRef.current;
-    if (stage) observer.observe(stage);
+      const angle = Math.random() * Math.PI * 2;
+      const velocity = 50 + Math.random() * 100;
+      const tx = Math.cos(angle) * velocity;
+      const ty = Math.sin(angle) * velocity;
 
-    const onResize = () => requestAnimationFrame(() => updatePaths());
-    window.addEventListener("resize", onResize);
+      particle
+        .animate(
+          [
+            { transform: "translate(0, 0) scale(1)", opacity: 1 },
+            { transform: `translate(${tx}px, ${ty}px) scale(0)`, opacity: 0 },
+          ],
+          {
+            duration: 800,
+            easing: "cubic-bezier(0, .9, .57, 1)",
+          },
+        )
+        .addEventListener("finish", () => particle.remove());
+    }
 
+    function handleClick(e: MouseEvent) {
+      createParticle(e.clientX, e.clientY);
+    }
+
+    document.addEventListener("click", handleClick);
     return () => {
-      cancelAnimationFrame(firstFrame);
-      observer.disconnect();
-      window.removeEventListener("resize", onResize);
+      document.removeEventListener("click", handleClick);
     };
-  }, [updatePaths]);
+  }, []);
 
   useEffect(() => {
-    const frame = requestAnimationFrame(() => updatePaths());
-    return () => cancelAnimationFrame(frame);
-  }, [selectedRole, updatePaths]);
+    return () => {
+      if (submitTimeoutRef.current) clearTimeout(submitTimeoutRef.current);
+      if (roleTapTimeoutRef.current) clearTimeout(roleTapTimeoutRef.current);
+    };
+  }, []);
 
-  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
+  function handleRoleSelect(role: UserRole) {
+    setSelectedRole(role);
+    setTappedRole(role);
+
+    if (roleTapTimeoutRef.current) clearTimeout(roleTapTimeoutRef.current);
+    roleTapTimeoutRef.current = setTimeout(() => {
+      setTappedRole(null);
+    }, 150);
+  }
+
+  function handleParallaxMove(event: ReactMouseEvent<HTMLElement>) {
+    if (!brainParallaxRef.current) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = (event.clientX - rect.left) / rect.width - 0.5;
+    const y = (event.clientY - rect.top) / rect.height - 0.5;
+    brainParallaxRef.current.style.transform = `translate3d(${x * 30}px, ${y * 30}px, 0)`;
+  }
+
+  function handleParallaxLeave() {
+    if (!brainParallaxRef.current) return;
+    brainParallaxRef.current.style.transform = "translate3d(0, 0, 0)";
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const verdict = validatePrototypeLogin(selectedRole, email, password);
-    if (!verdict.valid) {
-      setError(verdict.message);
-      return;
-    }
+    if (isSubmitting) return;
 
-    router.push(verdict.redirectTo);
-  };
+    setIsSubmitting(true);
+    if (submitTimeoutRef.current) clearTimeout(submitTimeoutRef.current);
 
-  const getPath = (line: NonNullable<LineGeometry[UserRole]>, offset: number) => {
-    const sy = line.start.y + offset;
-    const ey = line.end.y + offset;
-    const c1y = line.cp1.y + offset;
-    const c2y = line.cp2.y + offset;
-    return `M ${line.start.x} ${sy} C ${line.cp1.x} ${c1y}, ${line.cp2.x} ${c2y}, ${line.end.x} ${ey}`;
-  };
+    submitTimeoutRef.current = setTimeout(() => {
+      const result = validatePrototypeLogin(selectedRole, email, password);
+      if (result.valid) {
+        alert(`Connexion en tant que: ${selectedRoleMeta.title}`);
+        router.push(result.redirectTo);
+      } else {
+        alert(result.message);
+      }
+
+      setIsSubmitting(false);
+    }, 1500);
+  }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#e4ecef]">
-      <div className="absolute inset-y-0 left-0 hidden w-[48%] bg-[#0f5961] lg:block" />
-
-      <main className="relative z-20 mx-auto max-w-[1320px] px-4 py-6 md:px-8 md:py-10">
-        <div ref={stageRef} className="relative grid items-center gap-8 lg:grid-cols-[1.05fr_1fr]">
-          <motion.svg
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.4, duration: 0.7 }}
-            className="pointer-events-none absolute inset-0 z-10 hidden lg:block"
-          >
-            <defs>
-              <filter id="line-glow" x="-30%" y="-30%" width="160%" height="160%">
-                <feGaussianBlur stdDeviation="2" result="blur" />
-                <feMerge>
-                  <feMergeNode in="blur" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-            </defs>
-
-            {(Object.keys(lineGeometry) as UserRole[]).map((role) => {
-              const line = lineGeometry[role];
-              if (!line) return null;
-              const active = selectedRole === role;
-
-              return (
-                <g key={role}>
-                  {[-8, 0, 8].map((offset) => (
-                    <path
-                      key={`${role}-${offset}`}
-                      d={getPath(line, offset)}
-                      fill="none"
-                      stroke={roleColors[role]}
-                      strokeWidth={active ? 2.3 : 1.35}
-                      strokeLinecap="round"
-                      strokeDasharray={active ? "14 14" : "8 16"}
-                      opacity={active ? 0.95 : 0.22}
-                      filter={active ? "url(#line-glow)" : "none"}
-                      style={{ animation: active ? "flowDash 1.05s linear infinite" : "none" }}
-                    />
-                  ))}
-                </g>
-              );
-            })}
-          </motion.svg>
-
-          <motion.section
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6 }}
-            className="relative rounded-[1.8rem] px-2 py-2 lg:py-7"
-          >
-            <div className="relative mx-auto max-w-[620px]">
-              <LoginBrainScene selectedRole={selectedRole} />
-
-              <div
-                ref={(node) => {
-                  brainAnchorRefs.current.admin = node;
-                }}
-                className="pointer-events-none absolute right-[11%] top-[32%] h-3 w-3 rounded-full bg-cyan-200/0"
-              />
-              <div
-                ref={(node) => {
-                  brainAnchorRefs.current.teacher = node;
-                }}
-                className="pointer-events-none absolute right-[9%] top-[50%] h-3 w-3 rounded-full bg-violet-200/0"
-              />
-              <div
-                ref={(node) => {
-                  brainAnchorRefs.current.parent = node;
-                }}
-                className="pointer-events-none absolute right-[11%] top-[69%] h-3 w-3 rounded-full bg-pink-200/0"
-              />
+    <main className="min-h-screen bg-sky-mist">
+      <section className="grid min-h-screen lg:grid-cols-[1.05fr_0.95fr]">
+        <aside
+          className="hidden lg:flex relative overflow-hidden bg-gradient-to-br from-petrol-blue to-petrol-blue-deep px-5 py-8 sm:px-8 lg:px-10 lg:py-12 items-center justify-center"
+          onMouseMove={handleParallaxMove}
+          onMouseLeave={handleParallaxLeave}
+        >
+          <div className="absolute inset-0 bg-hero-mesh" />
+          <div className="relative w-full max-w-[760px] animate-fade-in-up">
+            <div ref={brainParallaxRef} className="will-change-transform transition-transform duration-150">
+              <BrainCapSVG selectedRole={selectedRole} />
             </div>
-          </motion.section>
+          </div>
+        </aside>
 
-          <motion.section
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1, duration: 0.65 }}
-            className="rounded-[2rem] bg-[#edf2f5] p-6 shadow-[0_20px_40px_rgba(24,55,73,0.14)] md:p-8"
-          >
-            <div className="text-center lg:text-left">
-              <h1 className="font-display text-5xl font-black tracking-tight text-[#0f4c5c] drop-shadow-[0_3px_6px_rgba(9,42,52,0.18)]">
+        <aside className="flex items-center justify-center bg-gradient-to-br from-sky-mist to-petrol-blue-soft px-4 py-10 sm:px-8 lg:px-10">
+          <article className="animate-fade-in-up w-full max-w-[560px] rounded-3xl border border-white/70 bg-white p-6 shadow-glass sm:p-8 lg:p-10">
+            <header className="mb-8 text-center">
+              <h1 className="font-display text-4xl font-extrabold tracking-tight text-petrol-blue sm:text-5xl">
                 EduTrack
               </h1>
-              <p className="mt-1 text-[#6b7d84]">Connexion securisee multi-roles</p>
-            </div>
+              <p className="mt-2 text-sm text-slate-600 sm:text-base">Connexion sécurisée multi-rôles</p>
+            </header>
 
-            <div className="mt-7 space-y-4">
-              {roleCards.map((item, index) => {
-                const Icon = item.icon;
-                const active = selectedRole === item.role;
+            <div className="space-y-3">
+              {roles.map((role, index) => {
+                const active = selectedRole === role.key;
+                const tapped = tappedRole === role.key;
+
                 return (
-                  <motion.button
-                    key={item.role}
-                    ref={(node) => {
-                      cardRefs.current[item.role] = node;
-                    }}
+                  <button
+                    key={role.key}
                     type="button"
-                    initial={{ opacity: 0, y: 14 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.35 + index * 0.1, duration: 0.4 }}
-                    onClick={() => onRoleChange(item.role)}
-                    className="w-full rounded-2xl border px-5 py-4 text-left transition-all duration-300 hover:scale-[1.01]"
+                    aria-pressed={active}
+                    onClick={() => handleRoleSelect(role.key)}
+                    className={
+                      "animate-fade-in-up group w-full rounded-2xl border px-4 py-4 text-left transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 " +
+                      (active
+                        ? "border-cyan-200/60 bg-gradient-to-br from-petrol-blue to-petrol-blue-deep text-white shadow-glass"
+                        : "border-slate-200 bg-slate-50 text-slate-800 hover:translate-x-2.5 hover:shadow-soft") +
+                      (tapped ? " scale-95" : "")
+                    }
                     style={{
-                      background: active ? "linear-gradient(115deg, #0f5961, #0b4a52)" : "#ffffff",
-                      borderColor: active ? "#0f5961" : "#eef2f4",
-                      boxShadow: active
-                        ? "0 10px 26px rgba(15,89,97,0.34)"
-                        : "0 8px 18px rgba(16,42,51,0.06)",
+                      animationDelay: `${0.14 + index * 0.1}s`,
                     }}
                   >
-                    <div className="flex items-start gap-3">
+                    <div className="flex items-start gap-4">
                       <span
-                        className="mt-0.5 grid h-8 w-8 place-items-center rounded-full"
-                        style={{
-                          background: active ? "rgba(255,255,255,0.12)" : "#f3f7f8",
-                          color: active ? "#d6fbff" : "#2e5159",
-                        }}
+                        className={
+                          "grid h-12 w-12 place-items-center rounded-full transition-all duration-300 " +
+                          (active
+                            ? "bg-white text-petrol-blue"
+                            : "bg-gradient-to-br from-petrol-blue to-petrol-blue-deep text-white")
+                        }
                       >
-                        <Icon size={16} />
+                        <RoleIcon role={role.key} />
                       </span>
 
-                      <div>
-                        <p className={`text-base font-bold ${active ? "text-white" : "text-[#0f2e35]"}`}>
-                          {item.title}
-                        </p>
-                        <p className={`mt-0.5 text-sm ${active ? "text-cyan-100/90" : "text-[#72848b]"}`}>
-                          {item.caption}
-                        </p>
-                      </div>
+                      <span>
+                        <strong className={"block text-base " + (active ? "text-white" : "text-slate-900")}>{role.title}</strong>
+                        <span className={"mt-0.5 block text-sm " + (active ? "text-cyan-100/90" : "text-slate-600")}>{role.subtitle}</span>
+                      </span>
                     </div>
-                  </motion.button>
+                  </button>
                 );
               })}
             </div>
 
-            <motion.form
-              onSubmit={onSubmit}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8, duration: 0.4 }}
-              className="mt-6 grid gap-3"
-            >
-              <label className="grid gap-1">
-                <span className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.14em] text-[#6e8188]">
-                  <Mail size={13} /> Email
-                </span>
-                <input
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  type="email"
-                  required
-                  className="rounded-xl border border-[#d5e0e5] bg-white px-3 py-2.5 text-[#0f2e35] outline-none transition focus:border-[#0f5961]"
-                />
-              </label>
+            <form className="mt-8" onSubmit={handleSubmit} aria-busy={isSubmitting}>
+              <div className="space-y-4">
+                <div>
+                  <input
+                    type="email"
+                    placeholder="Email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    autoComplete="email"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-cyan-300 focus:ring-2 focus:ring-cyan-200/50"
+                  />
+                </div>
 
-              <label className="grid gap-1">
-                <span className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.14em] text-[#6e8188]">
-                  <LockKeyhole size={13} /> Mot de passe
-                </span>
-                <input
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  type="password"
-                  required
-                  className="rounded-xl border border-[#d5e0e5] bg-white px-3 py-2.5 text-[#0f2e35] outline-none transition focus:border-[#0f5961]"
-                />
-              </label>
+                <div>
+                  <input
+                    type="password"
+                    placeholder="Mot de passe"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="current-password"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-cyan-300 focus:ring-2 focus:ring-cyan-200/50"
+                  />
+                </div>
 
-              {error ? <p className="text-sm text-[#d04d5a]">{error}</p> : null}
-
-              <button
-                type="submit"
-                className="mt-1 w-full rounded-xl bg-[#0f5961] px-4 py-2.5 font-semibold text-white shadow-[0_8px_18px_rgba(15,89,97,0.35)] transition hover:brightness-110"
-              >
-                Se connecter ({selectedCredentials?.label})
-              </button>
-            </motion.form>
-          </motion.section>
-        </div>
-      </main>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="ai-button inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-base font-semibold disabled:cursor-not-allowed disabled:opacity-80"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <LoaderCircle className="h-5 w-5 animate-spin" aria-hidden="true" />
+                      Connexion...
+                    </>
+                  ) : (
+                    <>
+                      <span>Se connecter</span>
+                      <ArrowRight className="h-5 w-5" aria-hidden="true" />
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </article>
+        </aside>
+      </section>
 
       <style jsx global>{`
-        @keyframes flowDash {
+        .animate-fade-in-up {
+          opacity: 0;
+          transform: translateY(14px);
+          animation: fadeInUp 0.7s ease-out forwards;
+        }
+
+        .stream-active {
+          animation: pulseStream 1.4s linear infinite;
+          filter: drop-shadow(0 0 7px var(--stream-color));
+        }
+
+        .stream-idle {
+          animation: pulseStream 3.6s linear infinite;
+          stroke-dashoffset: 0;
+        }
+
+        .stream-dot {
+          animation: dotPulse 1.4s ease-in-out infinite;
+        }
+
+        @keyframes fadeInUp {
           to {
-            stroke-dashoffset: -180;
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes pulseStream {
+          0% {
+            stroke-dashoffset: 0;
+          }
+          100% {
+            stroke-dashoffset: -150;
+          }
+        }
+
+        @keyframes dotPulse {
+          0%,
+          100% {
+            transform: scale(1);
+          }
+          50% {
+            transform: scale(1.2);
           }
         }
       `}</style>
-    </div>
+    </main>
   );
 }
